@@ -1,0 +1,26 @@
+services:
+  app-vulnerable:
+    build: ./app-vulnerable
+    container_name: mini-bbl-vulnerable
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_PATH=/data/lab.db
+    volumes:
+      - vuln-data:/data
+
+  app-fixed:
+    build: ./app-fixed
+    container_name: mini-bbl-fixed
+    ports:
+      - "8001:8000"
+    environment:
+      - DB_PATH=/data/lab.db
+      - JWT_SECRET=local-fixed-lab-secret-please-change-58f93a40dfe24d6e9d4b9f31
+      - ALLOWED_ORIGINS=http://localhost:8001
+    volumes:
+      - fixed-data:/data
+
+volumes:
+  vuln-data:
+  fixed-data:

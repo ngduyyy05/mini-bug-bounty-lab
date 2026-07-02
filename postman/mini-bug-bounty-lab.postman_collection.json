@@ -1,0 +1,213 @@
+{
+  "info": {
+    "name": "Mini Bug Bounty Lab",
+    "description": "Local-only API collection for the vulnerable and fixed Mini Bug Bounty Lab apps.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "vuln_base_url", "value": "http://localhost:8000" },
+    { "key": "fixed_base_url", "value": "http://localhost:8001" },
+    { "key": "alice_token", "value": "" },
+    { "key": "bob_token", "value": "" },
+    { "key": "fixed_alice_token", "value": "" },
+    { "key": "fixed_bob_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Vulnerable",
+      "item": [
+        {
+          "name": "Login Alice - Vulnerable",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"alice\",\"password\":\"alice123\"}"
+            },
+            "url": "{{vuln_base_url}}/api/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.collectionVariables.set('alice_token', body.access_token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Login Bob - Vulnerable",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"bob\",\"password\":\"bob123\"}"
+            },
+            "url": "{{vuln_base_url}}/api/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.collectionVariables.set('bob_token', body.access_token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "List Bob Orders",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{bob_token}}" }],
+            "url": "{{vuln_base_url}}/api/orders"
+          }
+        },
+        {
+          "name": "IDOR - Alice Reads Bob Order 3",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{alice_token}}" }],
+            "url": "{{vuln_base_url}}/api/orders/3"
+          }
+        },
+        {
+          "name": "Broken Access Control - Alice Calls Admin API",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{alice_token}}" }],
+            "url": "{{vuln_base_url}}/api/admin/users"
+          }
+        },
+        {
+          "name": "SQL Injection - Feedback Search",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{alice_token}}" }],
+            "url": {
+              "raw": "{{vuln_base_url}}/api/feedback?search=' OR '1'='1",
+              "host": ["{{vuln_base_url}}"],
+              "path": ["api", "feedback"],
+              "query": [{ "key": "search", "value": "' OR '1'='1" }]
+            }
+          }
+        },
+        {
+          "name": "Stored XSS - Submit Feedback",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{alice_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"message\":\"<script>alert('xss')</script>\"}"
+            },
+            "url": "{{vuln_base_url}}/api/feedback"
+          }
+        },
+        {
+          "name": "Business Logic - Cheap Checkout",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{alice_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"product_id\":1,\"quantity\":1,\"amount\":0.01}"
+            },
+            "url": "{{vuln_base_url}}/api/checkout"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Fixed",
+      "item": [
+        {
+          "name": "Login Alice - Fixed",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"alice\",\"password\":\"alice12345\"}"
+            },
+            "url": "{{fixed_base_url}}/api/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.collectionVariables.set('fixed_alice_token', body.access_token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "Login Bob - Fixed",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"username\":\"bob\",\"password\":\"bob12345\"}"
+            },
+            "url": "{{fixed_base_url}}/api/login"
+          },
+          "event": [{
+            "listen": "test",
+            "script": {
+              "type": "text/javascript",
+              "exec": [
+                "const body = pm.response.json();",
+                "pm.collectionVariables.set('fixed_bob_token', body.access_token);"
+              ]
+            }
+          }]
+        },
+        {
+          "name": "IDOR Retest - Alice Reads Bob Order 3",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{fixed_alice_token}}" }],
+            "url": "{{fixed_base_url}}/api/orders/3"
+          }
+        },
+        {
+          "name": "Admin Retest - Alice Calls Admin API",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{fixed_alice_token}}" }],
+            "url": "{{fixed_base_url}}/api/admin/users"
+          }
+        },
+        {
+          "name": "Checkout Retest - Server Calculates Amount",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{fixed_alice_token}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"product_id\":1,\"quantity\":1}"
+            },
+            "url": "{{fixed_base_url}}/api/checkout"
+          }
+        }
+      ]
+    }
+  ]
+}

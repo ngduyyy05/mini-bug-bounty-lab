@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+*.db
+.env
+uploads/
+app-vulnerable/uploads/*
+app-fixed/uploads/*
+!app-vulnerable/uploads/.gitkeep
+!app-fixed/uploads/.gitkeep
