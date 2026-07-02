@@ -207,6 +207,69 @@ def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request, "title": APP_TITLE})
 
 
+def web_app(request: Request):
+    return templates.TemplateResponse(
+        "app.html",
+        {
+            "request": request,
+            "title": APP_TITLE,
+            "mode": "fixed",
+            "login_hint": "alice / alice12345",
+            "checkout_allows_amount": False,
+        },
+    )
+
+
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/register", response_class=HTMLResponse)
+def register_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def dashboard_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/profile", response_class=HTMLResponse)
+def profile_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/orders", response_class=HTMLResponse)
+def orders_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/orders/{order_id}/view", response_class=HTMLResponse)
+def order_detail_page(request: Request, order_id: int):
+    return web_app(request)
+
+
+@app.get("/avatar", response_class=HTMLResponse)
+def avatar_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/feedback", response_class=HTMLResponse)
+def feedback_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request):
+    return web_app(request)
+
+
+@app.get("/checkout", response_class=HTMLResponse)
+def checkout_page(request: Request):
+    return web_app(request)
+
+
 @app.get("/feedback-wall", response_class=HTMLResponse)
 def feedback_wall(request: Request):
     conn = db()

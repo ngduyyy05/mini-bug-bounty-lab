@@ -28,21 +28,21 @@ It contains two versions of the same small ecommerce-style API:
 
 ```text
 mini-bug-bounty-lab/
-├── app-vulnerable/
-├── app-fixed/
-├── docker-compose.yml
-├── README.md
-├── docs/
-│   ├── pentest-report.md
-│   ├── methodology.md
-│   ├── vulnerability-matrix.md
-│   └── screenshots/
-├── scripts/
-│   ├── api_idor_checker.py
-│   ├── jwt_checker.py
-│   └── cors_checker.py
-└── postman/
-    └── mini-bug-bounty-lab.postman_collection.json
+|-- app-vulnerable/
+|-- app-fixed/
+|-- docker-compose.yml
+|-- README.md
+|-- docs/
+|   |-- pentest-report.md
+|   |-- methodology.md
+|   |-- vulnerability-matrix.md
+|   `-- screenshots/
+|-- scripts/
+|   |-- api_idor_checker.py
+|   |-- jwt_checker.py
+|   `-- cors_checker.py
+`-- postman/
+    `-- mini-bug-bounty-lab.postman_collection.json
 ```
 
 ## Quick Start
@@ -56,8 +56,10 @@ docker compose up --build
 Open:
 
 - Vulnerable app: http://localhost:8000
+- Vulnerable web UI: http://localhost:8000/login
 - Vulnerable Swagger: http://localhost:8000/docs
 - Fixed app: http://localhost:8001
+- Fixed web UI: http://localhost:8001/login
 - Fixed Swagger: http://localhost:8001/docs
 
 Stop the lab:
@@ -107,6 +109,32 @@ Fixed app:
 | VULN-08 | CORS Misconfiguration | Any API route |
 | VULN-09 | Missing Rate Limit | `POST /api/login` |
 | VULN-10 | Information Disclosure | Unhandled errors |
+
+## Web UI Demo Flow
+
+The lab includes a Bootstrap web UI for browser-based demos:
+
+- `/login` and `/register`
+- `/dashboard`
+- `/profile`
+- `/orders`
+- `/orders/{order_id}/view`
+- `/avatar`
+- `/feedback`
+- `/checkout`
+- `/admin`
+
+Recommended demo:
+
+1. Open `http://localhost:8000/login`.
+2. Log in as `alice/alice123`.
+3. Open `Orders`.
+4. Use the order ID input and open order `3`.
+5. The vulnerable app returns Bob's order to Alice.
+6. Repeat on `http://localhost:8001/login` with `alice/alice12345`.
+7. The fixed app blocks the same cross-user order access.
+
+The web UI stores the JWT in browser `localStorage` for lab convenience, which also makes it easy to inspect requests in browser DevTools or Burp Suite.
 
 ## Testing with Swagger, Postman and Burp
 
