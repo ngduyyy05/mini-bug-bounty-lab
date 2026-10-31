@@ -28,6 +28,7 @@ LOGIN_ATTEMPTS: dict[str, list[datetime]] = {}
 
 app = FastAPI(title=APP_TITLE, version="1.0.0-fixed")
 templates = Jinja2Templates(directory="templates")
+os.makedirs("uploads", exist_ok=True)
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 app.add_middleware(
@@ -204,7 +205,7 @@ def startup():
 
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request, "title": APP_TITLE})
+    return templates.TemplateResponse("index.html", {"request": request, "title": APP_TITLE, "mode": "fixed"})
 
 
 def web_app(request: Request):

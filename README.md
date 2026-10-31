@@ -235,3 +235,23 @@ Expected fixed result on port `8001`: HTTP `404` for the same cross-user access.
 - `docs/pentest-report.md`: professional sample report.
 - `docs/vulnerability-matrix.md`: quick mapping of vulnerabilities to OWASP categories.
 - `postman/mini-bug-bounty-lab.postman_collection.json`: importable API test collection.
+
+## Portfolio workbench and reproducible verification
+
+The root page of each instance is a responsive security workbench with searchable findings, inspection notes and a live IDOR check. The check authenticates as Alice, verifies her own order first, then requests Bob's order and exports timestamped JSON evidence. It does not store its token.
+
+Install and run isolated differential tests from the repository root:
+
+```bash
+python -m venv .venv
+# Windows: .venv\Scripts\activate
+# macOS/Linux: source .venv/bin/activate
+python -m pip install -r requirements-dev.txt
+python -m pytest -q
+```
+
+Tests create temporary SQLite databases and uploads; running Docker services are not required. GitHub Actions runs the suite and retains JUnit results on pushes and pull requests.
+
+For a recruiter walkthrough see [the five-minute demo](docs/demo-playbook.md). Read [security boundaries](docs/security-boundaries.md) before interpreting the fixed app or report. The report is an educational sample; its historical "Fixed" statuses describe intended controls and do not establish production readiness or complete automated coverage.
+
+Compose binds the lab to `127.0.0.1` on ports 8000/8001. To run without Docker, install the app requirements, enter the relevant app directory and run `python -m uvicorn main:app --host 127.0.0.1 --port 8000` (use port 8001 for fixed).

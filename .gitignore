@@ -7,3 +7,7 @@ app-vulnerable/uploads/*
 app-fixed/uploads/*
 !app-vulnerable/uploads/.gitkeep
 !app-fixed/uploads/.gitkeep
+
+.venv/
+.pytest_cache/
+artifacts/
