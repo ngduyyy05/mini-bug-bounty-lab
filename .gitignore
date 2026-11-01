@@ -11,3 +11,8 @@ app-fixed/uploads/*
 .venv/
 .pytest_cache/
 artifacts/
+
+# PHP dependencies and test cache
+vendor/
+.phpunit.cache/
+.phpunit.result.cache

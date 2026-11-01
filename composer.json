@@ -1,0 +1,25 @@
+{
+  "name": "mini-bbl/security-regression",
+  "description": "PHPUnit HTTP differential security tests for the local PHP lab",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "ext-curl": "*",
+    "ext-pdo_mysql": "*",
+    "firebase/php-jwt": "^7.2"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^12.5"
+  },
+  "scripts": {
+    "test": "phpunit",
+    "poc": "php scripts/poc.php"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.3.0"
+    }
+  }
+}

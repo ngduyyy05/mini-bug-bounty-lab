@@ -1,26 +1,110 @@
+name: mini-bbl-php
 services:
+  db-vulnerable:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: lab
+      MYSQL_USER: lab
+      MYSQL_PASSWORD: local-vulnerable-db
+      MYSQL_ROOT_PASSWORD: local-vulnerable-root
+    volumes: [vulnerable-mysql:/var/lib/mysql]
+    networks: [vulnerable]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u lab lab -e 'SELECT 1'"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+  db-fixed:
+    image: mysql:8.0
+    environment:
+      MYSQL_DATABASE: lab
+      MYSQL_USER: lab
+      MYSQL_PASSWORD: ${FIXED_DB_PASSWORD:-local-fixed-db}
+      MYSQL_ROOT_PASSWORD: ${FIXED_DB_ROOT_PASSWORD:-local-fixed-root}
+    volumes: [fixed-mysql:/var/lib/mysql]
+    networks: [fixed]
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=$$MYSQL_PASSWORD mysql -h 127.0.0.1 -u lab lab -e 'SELECT 1'"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
   app-vulnerable:
     build: ./app-vulnerable
-    container_name: mini-bbl-vulnerable
-    ports:
-      - "127.0.0.1:8000:8000"
+    ports: ["127.0.0.1:8000:80"]
     environment:
-      - DB_PATH=/data/lab.db
-    volumes:
-      - vuln-data:/data
-
+      DB_DSN: mysql:host=db-vulnerable;dbname=lab;charset=utf8mb4
+      DB_USER: lab
+      DB_PASSWORD: local-vulnerable-db
+    volumes: [vulnerable-uploads:/var/www/html/public/uploads]
+    networks: [vulnerable]
+    depends_on:
+      db-vulnerable: {condition: service_healthy}
+      delivery-vulnerable: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost/health') === false ? 1 : 0);"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
   app-fixed:
     build: ./app-fixed
-    container_name: mini-bbl-fixed
-    ports:
-      - "127.0.0.1:8001:8000"
+    ports: ["127.0.0.1:8001:80"]
     environment:
-      - DB_PATH=/data/lab.db
-      - JWT_SECRET=local-fixed-lab-secret-please-change-58f93a40dfe24d6e9d4b9f31
-      - ALLOWED_ORIGINS=http://localhost:8001
-    volumes:
-      - fixed-data:/data
-
+      DB_DSN: mysql:host=db-fixed;dbname=lab;charset=utf8mb4
+      DB_USER: lab
+      DB_PASSWORD: ${FIXED_DB_PASSWORD:-local-fixed-db}
+      JWT_SECRET: ${JWT_SECRET:?Run the PHP setup script to create .env first}
+      ALLOWED_ORIGINS: http://localhost:8001,http://127.0.0.1:8001
+    volumes: [fixed-uploads:/var/lib/lab/uploads]
+    networks: [fixed]
+    depends_on:
+      db-fixed: {condition: service_healthy}
+      delivery-fixed: {condition: service_healthy}
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost/health') === false ? 1 : 0);"]
+      interval: 3s
+      timeout: 3s
+      retries: 30
+  delivery-vulnerable:
+    build: ./services/delivery
+    networks:
+      vulnerable:
+        aliases: [delivery-service]
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost/health') === false ? 1 : 0);"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  delivery-fixed:
+    build: ./services/delivery
+    networks:
+      fixed:
+        aliases: [delivery-service]
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost/health') === false ? 1 : 0);"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+  tests:
+    profiles: [test]
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      VULNERABLE_URL: http://app-vulnerable
+      FIXED_URL: http://app-fixed
+      FIXED_DB_DSN: mysql:host=db-fixed;dbname=lab;charset=utf8mb4
+      FIXED_DB_PASSWORD: ${FIXED_DB_PASSWORD:-local-fixed-db}
+      JWT_SECRET: ${JWT_SECRET:?Run the PHP setup script to create .env first}
+    volumes: [./artifacts:/lab/artifacts]
+    networks: [vulnerable, fixed]
+    depends_on:
+      app-vulnerable: {condition: service_healthy}
+      app-fixed: {condition: service_healthy}
+networks:
+  vulnerable:
+  fixed:
 volumes:
-  vuln-data:
-  fixed-data:
+  vulnerable-mysql:
+  fixed-mysql:
+  vulnerable-uploads:
+  fixed-uploads:

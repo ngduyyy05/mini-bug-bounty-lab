@@ -1,257 +1,116 @@
-# Mini Bug Bounty Lab + Pentest Report
+# Mini Bug Bounty Lab — PHP edition
 
-Mini Bug Bounty Lab is a local-only FastAPI security lab for practicing web/API pentesting and presenting a clean portfolio project for a pentest internship application.
+Two independent ecommerce-style security labs built with **PHP 8.3, Apache, PDO and MySQL 8.0**. Compare twelve intentionally vulnerable implementations with corresponding remediations. Both provide registration, bearer-token login, profiles, orders, avatars, feedback, admin search, checkout, gift cards, shipment tracking and help articles through a Bootstrap 5 / JavaScript UI and REST API.
 
-It contains two versions of the same small ecommerce-style API:
+## Start locally
 
-- `app-vulnerable`: intentionally vulnerable implementation.
-- `app-fixed`: hardened implementation with the same business features.
+Install Docker Desktop with the Linux engine (or Docker Engine with Compose). No host PHP, Composer or Python is required.
 
-> Warning: this project is intentionally vulnerable. Run it only on your own local machine or an isolated lab network.
+```sh
+docker run --rm --mount "type=bind,source=${PWD},target=/lab" -w /lab php:8.3-cli php scripts/setup.php
+docker compose up -d --build --wait
+```
 
-## Learning Goals
+The setup script creates an ignored `.env` with randomly generated signing and database secrets; existing configuration is preserved. Start Apache applications at:
 
-- Practice API testing with Swagger, Postman, Burp Suite and small Python checkers.
-- Understand common web/API bugs and how to fix them.
-- Compare vulnerable and fixed code side by side.
-- Produce a professional pentest report with risk ratings, impact and retest results.
+- Vulnerable: http://localhost:8000
+- Fixed: http://localhost:8001
+- REST reference: `/docs` on either application
+- Storefront: `/`; account login: `/login`
+- Fixed version and remediation source locations: http://localhost:8001/fixes
 
-## Tech Stack
+| Account | Role | Vulnerable password | Fixed password |
+|---|---|---|---|
+| alice | user | alice123 | alice12345 |
+| bob | user | bob123 | bob12345 |
+| staff | staff | staff123 | staff12345 |
+| admin | admin | admin123 | admin12345 |
 
-- Backend: Python FastAPI
-- Database: SQLite
-- Frontend: HTML + Bootstrap
-- API docs: FastAPI Swagger/OpenAPI
-- Runtime: Docker Compose
+Alice owns orders 1 and 2; Bob owns 3 and 4. Products 1–3 cost $19.99, $39.99 and $12.50. Databases seed automatically once. Each application has its own database container, Docker network and upload volume. Database ports are not published. HTTP ports bind to loopback.
 
-## Project Structure
+## Explore the application
+
+The vulnerable website behaves like a small store, with products, accounts, orders, avatars, customer feedback and checkout. It retains twelve intentional vulnerability categories, including an upload/path-traversal/LFI execution chain. Pages do not identify vulnerable fields, provide payload presets or display exploitation instructions. Checkout displays the normal catalog total.
+
+The account navigation includes gift cards (`/gift-card`), shipment tracking (`/shipping`) and help (`/help`). Tracking uses a synthetic Mini Delivery service on each application's own Docker network; neither delivery service publishes a host port. Its sample link works without external internet access. The help section contains shipping and returns articles.
+
+The “Bản đã sửa” link opens a separate reference at `http://localhost:8001/fixes`, listing where each remediation lives under `app-fixed/`. This reference is optional and separate from the store workflow. Detailed scenarios, PoCs and the matrix below are solution material for review after independent testing.
+
+## Verify all twelve scenarios
+
+```sh
+docker compose --profile test build tests
+docker compose run --rm tests
+```
+
+This runs PHPUnit against the real Apache/PHP/MySQL services, including paired security tests and legitimate workflows. Individual reproducible proofs of concept:
+
+```sh
+docker compose run --rm tests php scripts/poc.php 01
+# Substitute 02 through 12, or use all. Scenario 05 also verifies the upload/LFI chain.
+```
+
+The test runner writes `artifacts/security-regression.xml` and per-scenario JSON HTTP evidence. Tokens are redacted. The suite clears **only fixed login throttle buckets** before each test; it creates synthetic accounts, orders, feedback and uploaded markers. Run it on this disposable local lab, sequentially. It does not reset existing application data. Failed assertions cause a nonzero exit code. Scenario PoCs write JSON evidence; the full runner also writes JUnit.
+
+| ID | Scenario | Vulnerable behavior | Fixed behavior |
+|---|---|---|---|
+| 01 | IDOR/BOLA | Read/write another user's profile; read their order | Owner/admin authorization |
+| 02 | Broken access control | Ordinary users can list admin data | Server-enforced admin role |
+| 03 | SQL injection | Search interpolated into SQL | Native PDO prepared statements |
+| 04 | Stored XSS | Raw feedback HTML in wall | HTML output encoding |
+| 05 | Upload / path traversal / LFI | Client folder escapes upload root; help includes uploaded PHP inside a PNG | Folder enum, image re-encoding, isolated storage and article allowlist |
+| 06 | Weak JWT secret | Known `secret` permits subject impersonation | Random external key; strict algorithm/claims |
+| 07 | Business logic | Client determines price and quantity constraints | Catalog prices, integer cents, quantity 1–20 |
+| 08 | CORS | Reflect arbitrary credentialed origins | Exact origin allowlist |
+| 09 | Missing rate limit | Unlimited authentication attempts | Atomic shared account/IP buckets |
+| 10 | Information disclosure | SQL errors, stack traces and DSN exposed | Generic failures and safe conflict responses |
+| 11 | SSTI | Gift message compiled as an unrestricted Twig template | Replace supported placeholders as plain text |
+| 12 | SSRF | Tracking fetches arbitrary HTTP hosts and follows redirects | Exact carrier URL/path allowlist; redirects rejected |
+
+See [scenario walkthroughs](docs/scenarios.md) for payloads, source explanations and verification criteria, [the demo playbook](docs/demo-playbook.md), [the sample pentest report](docs/pentest-report.md), and [security boundaries](docs/security-boundaries.md).
+
+## Structure
 
 ```text
-mini-bug-bounty-lab/
-|-- app-vulnerable/
-|-- app-fixed/
-|-- docker-compose.yml
-|-- README.md
-|-- docs/
-|   |-- pentest-report.md
-|   |-- methodology.md
-|   |-- vulnerability-matrix.md
-|   `-- screenshots/
-|-- scripts/
-|   |-- api_idor_checker.py
-|   |-- jwt_checker.py
-|   `-- cors_checker.py
-`-- postman/
-    `-- mini-bug-bounty-lab.postman_collection.json
+app-vulnerable/          Independent intentionally insecure PHP application
+app-fixed/              Independent remediated PHP application
+  public/index.php      Front controller and exception boundary
+  src/Application.php   REST routes, authorization, upload and business rules
+  src/Auth.php          Password hashing, JWT authentication, login throttling
+  src/Database.php      PDO connection and query execution
+  src/CustomerTools.php Gift previews, carrier requests and help articles
+  content/help/         Shipping and returns article files
+  templates/            PHP templates with HTML5, CSS3, Bootstrap 5, JavaScript
+  database/schema.sql   MySQL/InnoDB schema
+  bin/seed.php          Idempotent synthetic-data initialization
+  composer.*            Locked application dependencies
+scripts/setup.php       Generate local secrets without overwriting .env
+scripts/poc.php         Execute one/all paired scenario proofs
+services/delivery/      Synthetic carrier, deployed separately on each app network
+tests/                  PHPUnit HTTP integration and security tests
+Dockerfile.test         PHP 8.3 test environment
+docker-compose.yml      Apache/PHP apps plus isolated MySQL services
 ```
 
-## Quick Start
+Each application builds from its own directory and imports no files from the other. Fixed authentication, authorization and SQL paths are implemented independently; there is no runtime vulnerable/fixed switch. The vulnerable app uses a minimal HS256 codec to retain the intentionally weak short key; the fixed app uses the maintained `firebase/php-jwt` library. Composer security advisory blocking remains enabled, with committed lockfiles. PHPUnit 12.5 supports the PHP 8.3 runtime used here.
 
-From this directory:
+API paths and normal responses are retained where practical. MySQL DECIMAL amounts in order list/detail JSON are represented as decimal strings to preserve precision; checkout returns a JSON numeric `charged_amount`. `/docs` is now an explicit REST reference instead of FastAPI's generated Swagger page. There is no Python application or tooling dependency.
 
-```bash
-docker compose up --build
-```
+## Development and operations
 
-Open:
+Rebuild after edits with `docker compose up -d --build --wait`. Run checks as above. CI builds and runs the same Compose stack and uploads JSON/JUnit evidence. `docker compose logs app-fixed` shows server diagnostics, which the fixed API does not expose to clients. `docker compose stop` preserves lab data. `docker compose down` removes containers and networks while keeping named volumes.
 
-- Vulnerable app: http://localhost:8000
-- Vulnerable web UI: http://localhost:8000/login
-- Vulnerable Swagger: http://localhost:8000/docs
-- Fixed app: http://localhost:8001
-- Fixed web UI: http://localhost:8001/login
-- Fixed Swagger: http://localhost:8001/docs
+To intentionally erase this PHP lab's database and upload volumes and reseed:
 
-Stop the lab:
-
-```bash
-docker compose down
-```
-
-Reset seeded databases:
-
-```bash
+```sh
 docker compose down -v
-docker compose up --build
+docker compose up -d --build --wait
 ```
 
-## Sample Accounts
+Back up anything you want to retain first. Existing SQLite databases from older revisions are not imported or deleted. The old source remains available through Git history.
 
-Vulnerable app:
+## Scope
 
-| Role | Username | Password |
-|---|---|---|
-| user | alice | alice123 |
-| user | bob | bob123 |
-| staff | staff | staff123 |
-| admin | admin | admin123 |
+This is a local training lab containing deliberate vulnerabilities, including PHP upload execution. Keep the loopback bindings. Use synthetic data. The fixed app demonstrates the twelve remediations, with documented limits around token storage, logout and operational deployment; it is not a production ecommerce platform.
 
-Fixed app:
-
-| Role | Username | Password |
-|---|---|---|
-| user | alice | alice12345 |
-| user | bob | bob12345 |
-| staff | staff | staff12345 |
-| admin | admin | admin12345 |
-
-## Vulnerabilities in `app-vulnerable`
-
-| ID | Vulnerability | Example Endpoint |
-|---|---|---|
-| VULN-01 | IDOR/BOLA | `GET /api/orders/{order_id}` |
-| VULN-02 | Broken Access Control | `GET /api/admin/users` |
-| VULN-03 | SQL Injection | `GET /api/feedback?search=` |
-| VULN-04 | Stored XSS | `/feedback-wall` |
-| VULN-05 | Insecure File Upload | `POST /api/avatar` |
-| VULN-06 | Weak JWT Secret | `POST /api/login` |
-| VULN-07 | Business Logic Flaw | `POST /api/checkout` |
-| VULN-08 | CORS Misconfiguration | Any API route |
-| VULN-09 | Missing Rate Limit | `POST /api/login` |
-| VULN-10 | Information Disclosure | Unhandled errors |
-
-## Web UI Demo Flow
-
-The lab includes a Bootstrap web UI for browser-based demos:
-
-- `/login` and `/register`
-- `/dashboard`
-- `/profile`
-- `/orders`
-- `/orders/{order_id}/view`
-- `/avatar`
-- `/feedback`
-- `/checkout`
-- `/admin`
-
-Recommended demo:
-
-1. Open `http://localhost:8000/login`.
-2. Log in as `alice/alice123`.
-3. Open `Orders`.
-4. Use the order ID input and open order `3`.
-5. The vulnerable app returns Bob's order to Alice.
-6. Repeat on `http://localhost:8001/login` with `alice/alice12345`.
-7. The fixed app blocks the same cross-user order access.
-
-The web UI stores the JWT in browser `localStorage` for lab convenience, which also makes it easy to inspect requests in browser DevTools or Burp Suite.
-
-## Testing with Swagger, Postman and Burp
-
-Swagger:
-
-1. Open `http://localhost:8000/docs`.
-2. Call `POST /api/login` with `alice/alice123`.
-3. Copy the token and click `Authorize`.
-4. Test order, profile, feedback, upload and admin endpoints.
-
-Postman:
-
-1. Import `postman/mini-bug-bounty-lab.postman_collection.json`.
-2. Run `Login Alice - Vulnerable` and `Login Bob - Vulnerable`.
-3. Copy tokens into collection variables if your Postman version does not auto-store them.
-4. Send the IDOR, admin and feedback requests.
-
-Burp Suite:
-
-1. Configure your browser to use Burp proxy, usually `127.0.0.1:8080`.
-2. Log in through Swagger or Postman.
-3. Intercept `GET /api/orders/1`.
-4. Change the order ID to another user's order, such as `/api/orders/3`.
-5. Forward the request and observe the vulnerable app returns another user's order.
-
-## Running Checker Scripts
-
-Install script dependencies locally:
-
-```bash
-cd scripts
-python -m pip install -r requirements.txt
-```
-
-Get two vulnerable tokens:
-
-```bash
-curl -s -X POST http://localhost:8000/api/login -H "Content-Type: application/json" -d "{\"username\":\"alice\",\"password\":\"alice123\"}"
-curl -s -X POST http://localhost:8000/api/login -H "Content-Type: application/json" -d "{\"username\":\"bob\",\"password\":\"bob123\"}"
-```
-
-Run IDOR checker:
-
-```bash
-python scripts/api_idor_checker.py http://localhost:8000 <alice_token> <bob_token>
-python scripts/api_idor_checker.py http://localhost:8001 <alice_fixed_token> <bob_fixed_token>
-```
-
-Run JWT checker:
-
-```bash
-python scripts/jwt_checker.py <alice_token> --base-url http://localhost:8000
-```
-
-Run CORS checker:
-
-```bash
-python scripts/cors_checker.py http://localhost:8000
-python scripts/cors_checker.py http://localhost:8001
-```
-
-## Manual IDOR Demo with curl
-
-1. Log in as Alice:
-
-```bash
-ALICE_TOKEN=$(curl -s -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"alice","password":"alice123"}' | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-```
-
-2. Log in as Bob and list Bob's orders:
-
-```bash
-BOB_TOKEN=$(curl -s -X POST http://localhost:8000/api/login \
-  -H "Content-Type: application/json" \
-  -d '{"username":"bob","password":"bob123"}' | python -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
-
-curl -s http://localhost:8000/api/orders -H "Authorization: Bearer $BOB_TOKEN"
-```
-
-3. Use Alice's token to access Bob's order, for example order ID `3`:
-
-```bash
-curl -i http://localhost:8000/api/orders/3 -H "Authorization: Bearer $ALICE_TOKEN"
-```
-
-Expected vulnerable result: HTTP `200` with `user_id: 2`.
-
-Expected fixed result on port `8001`: HTTP `404` for the same cross-user access.
-
-## Important Files
-
-- `app-vulnerable/main.py`: vulnerable FastAPI app and seeded database logic.
-- `app-fixed/main.py`: fixed FastAPI app with authorization, safe SQL, upload validation, rate limiting and safer errors.
-- `docker-compose.yml`: runs both apps side by side.
-- `scripts/`: lightweight security checkers for IDOR, JWT and CORS.
-- `docs/pentest-report.md`: professional sample report.
-- `docs/vulnerability-matrix.md`: quick mapping of vulnerabilities to OWASP categories.
-- `postman/mini-bug-bounty-lab.postman_collection.json`: importable API test collection.
-
-## Portfolio workbench and reproducible verification
-
-The root page of each instance is a responsive security workbench with searchable findings, inspection notes and a live IDOR check. The check authenticates as Alice, verifies her own order first, then requests Bob's order and exports timestamped JSON evidence. It does not store its token.
-
-Install and run isolated differential tests from the repository root:
-
-```bash
-python -m venv .venv
-# Windows: .venv\Scripts\activate
-# macOS/Linux: source .venv/bin/activate
-python -m pip install -r requirements-dev.txt
-python -m pytest -q
-```
-
-Tests create temporary SQLite databases and uploads; running Docker services are not required. GitHub Actions runs the suite and retains JUnit results on pushes and pull requests.
-
-For a recruiter walkthrough see [the five-minute demo](docs/demo-playbook.md). Read [security boundaries](docs/security-boundaries.md) before interpreting the fixed app or report. The report is an educational sample; its historical "Fixed" statuses describe intended controls and do not establish production readiness or complete automated coverage.
-
-Compose binds the lab to `127.0.0.1` on ports 8000/8001. To run without Docker, install the app requirements, enter the relevant app directory and run `python -m uvicorn main:app --host 127.0.0.1 --port 8000` (use port 8001 for fixed).
+Implementation references: [PDO prepared statements](https://www.php.net/manual/en/pdo.prepared-statements.php), [PHP password hashing](https://www.php.net/manual/en/function.password-hash.php), [JWT library](https://github.com/googleapis/php-jwt), [Twig template API](https://twig.symfony.com/doc/3.x/api.html), [PHP include](https://www.php.net/manual/en/function.include.php), [PHPUnit installation](https://docs.phpunit.de/en/12.5/installation.html).

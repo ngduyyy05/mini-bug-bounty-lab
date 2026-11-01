@@ -1,0 +1,15 @@
+FROM php:8.3-cli
+RUN apt-get update && apt-get install -y --no-install-recommends libcurl4-openssl-dev libonig-dev libxml2-dev libpng-dev unzip git \
+    && docker-php-ext-install curl mbstring dom pdo_mysql gd \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=composer:2 /usr/bin/composer /usr/local/bin/composer
+WORKDIR /lab
+COPY composer.json composer.lock ./
+RUN composer install --no-interaction --prefer-dist
+COPY phpunit.xml ./
+COPY tests ./tests
+COPY scripts ./scripts
+COPY app-fixed ./app-fixed
+RUN composer install --working-dir=app-fixed --no-dev --no-interaction --prefer-dist
+COPY app-vulnerable/src ./app-vulnerable/src
+CMD ["vendor/bin/phpunit", "--log-junit", "artifacts/security-regression.xml", "--testdox"]

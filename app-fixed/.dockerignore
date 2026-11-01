@@ -1,0 +1,4 @@
+vendor
+uploads
+*.py
+__pycache__

@@ -1,25 +1,31 @@
-# Five-minute interview demo
+# Five-minute PHP security demo
 
-## 0:00 - Context and scope
+## 0:00 — Start and scope
 
-Explain: "I built a synthetic ecommerce API in vulnerable and remediated forms to demonstrate how I test authorization and validate fixes." Start both local services with `docker compose up --build`. Open localhost:8000.
+This document is presenter solution material, separate from the public website. Follow the README setup, then `docker compose up -d --build --wait`. Open localhost:8000. The storefront exposes normal shopping functions without lessons or payload hints. Describe the synthetic shop, two independent PHP applications, separate MySQL databases and loopback-only scope.
 
-## 0:45 - Show a reproducible finding
+## 0:45 — Reproduce IDOR
 
-On the workbench select VULN-01. Describe the boundary: Alice is authenticated, but does not own Bob's order. Run the live check. Show the positive control and the unauthorized response. Export the JSON as evidence. Explain that the impact is cross-customer purchase disclosure; do not claim account takeover from this evidence.
+Sign in as Alice and open one of her orders. Inspect the order request with your own HTTP tools, then request Bob's order 3. Alice's own order returns 200; Bob's order also returns 200 in the vulnerable app. Explain the consequence: cross-customer purchase disclosure. The evidence does not establish account takeover.
 
-## 1:45 - Show the fix
+## 1:45 — Show the PHP remediation
 
-Open localhost:8001 and repeat. The owner request still returns 200, while Bob's order returns 404. Compare `order_detail` in the two main.py files: the fixed query scopes the object by owner, with an explicit admin exception.
+Open localhost:8001/fixes to locate the remediation, then repeat at localhost:8001. Alice's own order remains available; order 3 returns 404. Compare the order route in each `src/Application.php`: the fixed query binds both order ID and owner ID, with an explicit admin exception. Profile reads and writes enforce the same trust boundary.
 
-## 2:45 - Show regression evidence
+## 2:45 — Run paired evidence
 
-Run `python -m pytest -q` after installing requirements-dev.txt. Explain why checking both apps matters: an exploit test that fails everywhere can hide a broken login or invalid payload. Show tests for pricing, injection and authorization, then open the CI workflow.
+```sh
+docker compose --profile test build tests
+docker compose run --rm tests
+docker compose run --rm tests php scripts/poc.php 06
+```
 
-## 3:45 - Discuss tradeoffs
+Show PHPUnit's result, `artifacts/security-regression.xml`, and the JSON request/response evidence. Scenario 06 signs an admin **subject**, not merely an admin role, using the known weak key. `/api/me` proves impersonation in the vulnerable app and returns 401 in the fixed app. Positive controls distinguish blocked exploitation from broken authentication.
 
-Use docs/security-boundaries.md. Discuss why extension/MIME upload checks are incomplete, why localStorage JWTs deserve a session-design review, and why a local throttle does not scale across workers. Acknowledge what the suite does not prove.
+## 3:45 — Explain stronger PHP controls
 
-## 4:30 - Close with next steps
+Compare SQL interpolation with native PDO parameters. Explain `htmlspecialchars` at the HTML output boundary. Demonstrate a valid image upload and a harmless PHP echo marker: vulnerable uploads execute; fixed uploads reject that file and re-encode real images outside Apache's document root. Show account/IP rate limits stored atomically in MySQL across Apache workers, including concurrent-request tests.
 
-Show docs/pentest-report.md as a sample report. Describe a next improvement you can defend technically: image re-encoding, shared rate limiting, or a complete role/object access matrix. Keep all claims tied to this lab and actual test artifacts.
+## 4:30 — State the limits
+
+Open `docs/security-boundaries.md` and the sample report. Discuss localStorage tokens, expiry-based logout, single-host deployment and browser-specific verification. The XSS test proves executable markup is emitted; it is not a browser automation run. Keep all claims tied to recorded observations and successful assertions.

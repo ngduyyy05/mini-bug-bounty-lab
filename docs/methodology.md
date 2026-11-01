@@ -11,7 +11,7 @@ This lab methodology is based on OWASP Web Security Testing Guide concepts and t
 
 ## 2. Reconnaissance
 
-- Review Swagger/OpenAPI documentation at `/docs`.
+- Review PHP REST API reference at `/docs`.
 - Enumerate endpoints, methods, request bodies and response codes.
 - Identify role-protected routes and object identifiers.
 - Create test accounts for each role.
@@ -21,7 +21,7 @@ This lab methodology is based on OWASP Web Security Testing Guide concepts and t
 - Test login behavior with valid and invalid credentials.
 - Review JWT header and claims.
 - Check token expiration and signature verification.
-- Test weak signing secrets with a small demonstration wordlist.
+- Test a forged token signed with the known local demonstration key.
 - Test rate limiting on repeated failed login attempts.
 
 ## 4. Authorization Testing
@@ -45,8 +45,8 @@ This lab methodology is based on OWASP Web Security Testing Guide concepts and t
 ## 7. File Upload Testing
 
 - Attempt uploads with unexpected extensions and MIME types.
-- Check filename handling and path safety.
-- Verify size limits and randomized server-side filenames.
+- Check filename handling, detected MIME, image decoding, isolated storage and path safety.
+- Verify size/dimension limits, image re-encoding and randomized server-side filenames.
 
 ## 8. Business Logic Testing
 

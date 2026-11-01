@@ -1,0 +1,34 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(40) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(120) NOT NULL,
+    full_name VARCHAR(120) NOT NULL DEFAULT '',
+    role ENUM('user','staff','admin') NOT NULL DEFAULT 'user',
+    avatar VARCHAR(255) NULL
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS products (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    name VARCHAR(120) NOT NULL,
+    price DECIMAL(10,2) NOT NULL
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS orders (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    item VARCHAR(255) NOT NULL,
+    amount DECIMAL(12,2) NOT NULL,
+    status VARCHAR(30) NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS feedback (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT NOT NULL,
+    message TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    FOREIGN KEY (user_id) REFERENCES users(id)
+) ENGINE=InnoDB;
+CREATE TABLE IF NOT EXISTS login_limits (
+    bucket CHAR(64) PRIMARY KEY,
+    attempts INT NOT NULL,
+    reset_at BIGINT NOT NULL
+) ENGINE=InnoDB;

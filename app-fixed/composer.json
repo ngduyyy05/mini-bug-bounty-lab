@@ -1,0 +1,28 @@
+{
+  "name": "mini-bbl/fixed",
+  "description": "Independent fixed PHP security training application",
+  "type": "project",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*",
+    "ext-fileinfo": "*",
+    "ext-gd": "*",
+    "firebase/php-jwt": "^7.2"
+  },
+  "autoload": {
+    "psr-4": {
+      "Lab\\": "src/"
+    },
+    "files": [
+      "src/Http.php"
+    ]
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.3.0"
+    }
+  }
+}
